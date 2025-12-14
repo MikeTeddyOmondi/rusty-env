@@ -2,12 +2,12 @@ use crate::db::JsonStore;
 use crate::error::{AppError, Result};
 use crate::models::{CreateProjectRequest, ExportQuery, SetVariableRequest, UpdateProjectRequest};
 use axum::{
+    Json, Router,
     extract::{Path, Query, State},
     http::StatusCode,
-    routing::{delete, get, post, put},
-    Json, Router,
+    routing::get,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub fn create_router(store: JsonStore) -> Router {
     Router::new()
@@ -30,6 +30,7 @@ pub fn create_router(store: JsonStore) -> Router {
 }
 
 // Project handlers
+#[axum::debug_handler]
 async fn create_project(
     State(store): State<JsonStore>,
     Json(req): Json<CreateProjectRequest>,
@@ -38,25 +39,34 @@ async fn create_project(
     Ok((StatusCode::CREATED, Json(json!(project))))
 }
 
-async fn get_project(State(store): State<JsonStore>, Path(name): Path<String>) -> Result<Json<Value>> {
+#[axum::debug_handler]
+async fn get_project(
+    State(store): State<JsonStore>,
+    Path(name): Path<String>,
+) -> Result<Json<Value>> {
     let project = store.get_project(&name).await?;
     Ok(Json(json!(project)))
 }
 
+#[axum::debug_handler]
 async fn list_projects(State(store): State<JsonStore>) -> Result<Json<Value>> {
     let projects = store.list_projects().await?;
     Ok(Json(json!(projects)))
 }
 
+#[axum::debug_handler]
 async fn update_project(
     State(store): State<JsonStore>,
     Path(name): Path<String>,
     Json(req): Json<UpdateProjectRequest>,
 ) -> Result<Json<Value>> {
-    let project = store.update_project(&name, req.name, req.description).await?;
+    let project = store
+        .update_project(&name, req.name, req.description)
+        .await?;
     Ok(Json(json!(project)))
 }
 
+#[axum::debug_handler]
 async fn delete_project(
     State(store): State<JsonStore>,
     Path(name): Path<String>,
@@ -72,7 +82,13 @@ async fn set_variable(
     Json(req): Json<SetVariableRequest>,
 ) -> Result<(StatusCode, Json<Value>)> {
     let variable = store
-        .set_variable(&project_name, &env, key, req.value, req.encrypted.unwrap_or(false))
+        .set_variable(
+            &project_name,
+            &env,
+            key,
+            req.value,
+            req.encrypted.unwrap_or(false),
+        )
         .await?;
     Ok((StatusCode::CREATED, Json(json!(variable))))
 }
@@ -124,35 +140,47 @@ async fn export_project(
         "json" => export_json(&environment)?,
         "yaml" => export_yaml(&environment),
         "docker" => export_docker(&environment),
-        _ => return Err(AppError::InvalidInput(format!("Unknown format: {}", format))),
+        _ => {
+            return Err(AppError::InvalidInput(format!(
+                "Unknown format: {}",
+                format
+            )));
+        }
     };
 
     Ok(output)
 }
 
 // Export format helpers
-fn export_dotenv(env: &std::collections::HashMap<String, crate::models::EnvVariable>) -> String {
+pub fn export_dotenv(
+    env: &std::collections::HashMap<String, crate::models::EnvVariable>,
+) -> String {
     env.iter()
         .map(|(key, var)| format!("{}={}", key, var.value))
         .collect::<Vec<_>>()
         .join("\n")
 }
 
-fn export_json(env: &std::collections::HashMap<String, crate::models::EnvVariable>) -> Result<String> {
-    let map: std::collections::HashMap<&str, &str> = env.iter()
+pub fn export_json(
+    env: &std::collections::HashMap<String, crate::models::EnvVariable>,
+) -> Result<String> {
+    let map: std::collections::HashMap<&str, &str> = env
+        .iter()
         .map(|(k, v)| (k.as_str(), v.value.as_str()))
         .collect();
     serde_json::to_string_pretty(&map).map_err(Into::into)
 }
 
-fn export_yaml(env: &std::collections::HashMap<String, crate::models::EnvVariable>) -> String {
+pub fn export_yaml(env: &std::collections::HashMap<String, crate::models::EnvVariable>) -> String {
     env.iter()
         .map(|(key, var)| format!("{}: {}", key, var.value))
         .collect::<Vec<_>>()
         .join("\n")
 }
 
-fn export_docker(env: &std::collections::HashMap<String, crate::models::EnvVariable>) -> String {
+pub fn export_docker(
+    env: &std::collections::HashMap<String, crate::models::EnvVariable>,
+) -> String {
     env.iter()
         .map(|(key, var)| format!("-e {}={}", key, var.value))
         .collect::<Vec<_>>()

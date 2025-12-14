@@ -20,7 +20,9 @@ impl Default for ServerConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct DatabaseConfig {
     pub path: PathBuf,
+    #[allow(dead_code)]
     pub auto_backup: bool,
+    #[allow(dead_code)]
     pub backup_dir: Option<PathBuf>,
 }
 
@@ -36,7 +38,9 @@ impl Default for DatabaseConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct DefaultsConfig {
+    #[allow(dead_code)]
     pub environment: String,
+    #[allow(dead_code)]
     pub export_format: String,
 }
 
@@ -56,6 +60,7 @@ pub struct AppConfig {
     #[serde(default)]
     pub database: DatabaseConfig,
     #[serde(default)]
+    #[allow(dead_code)]
     pub defaults: DefaultsConfig,
 }
 

@@ -40,7 +40,11 @@ impl JsonStore {
     }
 
     // Project operations
-    pub async fn create_project(&self, name: String, description: Option<String>) -> Result<Project> {
+    pub async fn create_project(
+        &self,
+        name: String,
+        description: Option<String>,
+    ) -> Result<Project> {
         let mut db = self.db.write().await;
 
         if db.projects.contains_key(&name) {
@@ -76,6 +80,13 @@ impl JsonStore {
     ) -> Result<Project> {
         let mut db = self.db.write().await;
 
+        // Check if new_name conflicts before getting mutable reference
+        if let Some(ref new_name) = new_name {
+            if new_name != name && db.projects.contains_key(new_name) {
+                return Err(AppError::ProjectAlreadyExists(new_name.clone()));
+            }
+        }
+
         let project = db
             .projects
             .get_mut(name)
@@ -86,18 +97,14 @@ impl JsonStore {
         }
 
         if let Some(new_name) = new_name {
-            if new_name != name && db.projects.contains_key(&new_name) {
-                return Err(AppError::ProjectAlreadyExists(new_name));
-            }
-            
             let mut updated_project = project.clone();
             updated_project.name = new_name.clone();
             updated_project.update_timestamp();
-            
+
             db.projects.remove(name);
             db.projects.insert(new_name, updated_project.clone());
             drop(db);
-            
+
             self.save().await?;
             return Ok(updated_project);
         }
@@ -140,7 +147,10 @@ impl JsonStore {
             .get_mut(project_name)
             .ok_or_else(|| AppError::ProjectNotFound(project_name.to_string()))?;
 
-        let environment = project.environments.entry(env.to_string()).or_insert_with(HashMap::new);
+        let environment = project
+            .environments
+            .entry(env.to_string())
+            .or_insert_with(HashMap::new);
 
         let variable = EnvVariable::new(value, encrypted);
         environment.insert(key, variable.clone());
@@ -151,7 +161,12 @@ impl JsonStore {
         Ok(variable)
     }
 
-    pub async fn get_variable(&self, project_name: &str, env: &str, key: &str) -> Result<EnvVariable> {
+    pub async fn get_variable(
+        &self,
+        project_name: &str,
+        env: &str,
+        key: &str,
+    ) -> Result<EnvVariable> {
         let db = self.db.read().await;
 
         let project = db
@@ -185,7 +200,10 @@ impl JsonStore {
             .ok_or_else(|| AppError::EnvironmentNotFound(env.to_string()))
     }
 
-    pub async fn list_environments(&self, project_name: &str) -> Result<HashMap<String, Environment>> {
+    pub async fn list_environments(
+        &self,
+        project_name: &str,
+    ) -> Result<HashMap<String, Environment>> {
         let db = self.db.read().await;
 
         let project = db
@@ -221,4 +239,3 @@ impl JsonStore {
         Ok(())
     }
 }
-```

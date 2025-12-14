@@ -1,4 +1,4 @@
-axum::{
+use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
@@ -20,6 +20,7 @@ pub enum AppError {
     #[error("Project already exists: {0}")]
     ProjectAlreadyExists(String),
 
+    #[allow(dead_code)]
     #[error("Database error: {0}")]
     DatabaseError(String),
 
