@@ -1,0 +1,13 @@
+server:
+  host: "127.0.0.1"
+  port: 8080
+
+database:
+  path: "./data/env-store.json"
+  auto_backup: true
+  backup_dir: "./backups"
+
+defaults:
+  environment: "development"
+  export_format: "dotenv"
+  
