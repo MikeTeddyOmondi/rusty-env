@@ -65,7 +65,7 @@ pub enum EnvCommands {
         #[arg(short, long, default_value = "development")]
         env: String,
         /// Encrypt the value
-        #[arg(short = 'e', long)]
+        #[arg(short = 'k', long)]
         encrypted: bool,
     },
     /// Get an environment variable
